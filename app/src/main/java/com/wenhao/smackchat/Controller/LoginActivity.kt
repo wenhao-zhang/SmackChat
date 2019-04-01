@@ -4,13 +4,11 @@ import android.content.Context
 import android.content.Intent
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
-import android.support.v4.content.LocalBroadcastManager
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import com.wenhao.smackchat.R
 import com.wenhao.smackchat.Services.AuthService
-import com.wenhao.smackchat.Utilities.BROADCAST_USER_DATA_CHANGE
 import kotlinx.android.synthetic.main.activity_login.*
 
 class LoginActivity : AppCompatActivity() {
@@ -29,14 +27,11 @@ class LoginActivity : AppCompatActivity() {
         this.hideKeyBoard()
 
         if (email.isNotEmpty() && password.isNotEmpty()) {
-            AuthService.loginUser(this, email, password) { loginSucess ->
+            AuthService.loginUser(email, password) { loginSucess ->
                 if (loginSucess) {
                     AuthService.findUserByEmail(this) { findUserSuccess ->
 
                         if (findUserSuccess) {
-                            val userDataChange = Intent(BROADCAST_USER_DATA_CHANGE)
-                            LocalBroadcastManager.getInstance(this).sendBroadcast(userDataChange)
-
                             this.enableSpinner(false)
                             finish()
                         } else {

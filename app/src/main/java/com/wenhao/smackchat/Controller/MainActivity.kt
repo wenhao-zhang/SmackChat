@@ -10,8 +10,10 @@ import android.support.v7.app.AlertDialog
 import android.support.v7.app.AppCompatActivity
 import android.view.View
 import android.view.inputmethod.InputMethodManager
+import android.widget.ArrayAdapter
 import android.widget.EditText
 import com.wenhao.smackchat.Model.Channel
+import com.wenhao.smackchat.Model.Message
 import com.wenhao.smackchat.R
 import com.wenhao.smackchat.Services.AuthService
 import com.wenhao.smackchat.Services.MessageService
@@ -27,9 +29,53 @@ import kotlinx.android.synthetic.main.nav_header_main.*
 
 class MainActivity : AppCompatActivity() {
 
-    val socket = IO.socket(SOCKET_URL)
+    private val socket = IO.socket(SOCKET_URL)
+    lateinit var channelAdapter: ArrayAdapter<Channel>
+    var selectedChannel: Channel? = null
 
-    private val onNewchannel = Emitter.Listener{args ->
+
+    private val userDataChangeReceiver = object : BroadcastReceiver(){
+        override fun onReceive(context: Context, intent: Intent?) {
+            if (App.prefs.isLoggedIn){
+                userNameNavHeader.text = UserDataService.name
+                userEmailNavHeader.text = UserDataService.email
+
+                val resourceId = resources.getIdentifier(UserDataService.avatarName, "drawable", packageName)
+                userImageNavHeader.setImageResource(resourceId)
+                loginBtnNavHeader.text = "Logout"
+                userImageNavHeader.setBackgroundColor(UserDataService.getAvatarColor(UserDataService.avatarColor))
+
+                MessageService.getChannels{ complete ->
+                    if (complete){
+
+                        if (MessageService.channels.count() > 0){
+                            selectedChannel = MessageService.channels[0]
+                            channelAdapter.notifyDataSetChanged()
+                            updateWithChannel()
+                        }
+                    }
+                }
+            }
+            toggleVisibility(App.prefs.isLoggedIn)
+        }
+    }
+
+    private  val onNewMessage = Emitter.Listener { args ->
+        runOnUiThread{
+            val message: String = args[0] as String
+            val channelId: String = args[2] as String
+            val userName: String = args[3] as String
+            val userAvatar: String = args[4] as String
+            val userAvatarColor: String = args[5] as String
+            val id: String = args[6] as String
+            val timpeStamp: String = args[7] as String
+
+            val newMessage = Message(message, userName, channelId, userAvatar, userAvatarColor, id, timpeStamp)
+            MessageService.messages.add(newMessage)
+        }
+    }
+
+    private val onNewChannel = Emitter.Listener{ args ->
         runOnUiThread{
             val channelName = args[0] as String
             val channelDescription = args[1] as String
@@ -38,6 +84,7 @@ class MainActivity : AppCompatActivity() {
             val newChannel = Channel(channelName, channelDescription, channelId)
 
             MessageService.channels.add(newChannel)
+            channelAdapter.notifyDataSetChanged()
         }
     }
 
@@ -47,8 +94,6 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
         setSupportActionBar(toolbar)
 
-        hideKeyBoard()
-
         val toggle = ActionBarDrawerToggle(
             this, drawer_layout, toolbar,
             R.string.navigation_drawer_open,
@@ -57,12 +102,24 @@ class MainActivity : AppCompatActivity() {
         drawer_layout.addDrawerListener(toggle)
         toggle.syncState()
 
+        socket.connect()
+        socket.on("channelCreated", this.onNewChannel)
+        socket.on("messageCreated", this.onNewMessage)
+
+        this.channel_list.setOnItemClickListener { _, _, position, _ ->
+            selectedChannel = MessageService.channels[position]
+            drawer_layout.closeDrawer(GravityCompat.START)
+            updateWithChannel()
+        }
+        this.setupAdapter()
+
+        if (App.prefs.isLoggedIn){
+            AuthService.findUserByEmail(this) {}
+        }
     }
 
     override fun onResume() {
         super.onResume()
-        socket.connect()
-        socket.on("channelCreated", onNewchannel)
         LocalBroadcastManager.getInstance(this).registerReceiver(userDataChangeReceiver,
         IntentFilter(BROADCAST_USER_DATA_CHANGE))
     }
@@ -84,15 +141,17 @@ class MainActivity : AppCompatActivity() {
 
     fun loginBtnNavHeaderOnClicked(view: View){
 
-        if (AuthService.isLoggedIn){
+        if (App.prefs.isLoggedIn){
             UserDataService.logOut()
             userNameNavHeader.text = ""
             userEmailNavHeader.text = ""
             userImageNavHeader.setImageResource(R.drawable.profiledefault)
             userImageNavHeader.setBackgroundColor(Color.TRANSPARENT)
             loginBtnNavHeader.text = "Login"
-            setAddChannelBtnVisibilty(AuthService.isLoggedIn)
-            setChatBoxVisibilty(AuthService.isLoggedIn)
+            toggleVisibility(App.prefs.isLoggedIn)
+            MessageService.clearChannels{
+                channelAdapter.notifyDataSetChanged()
+            }
         }else{
             val loginActivityIntent = Intent(this, LoginActivity::class.java)
             startActivity(loginActivityIntent)
@@ -101,12 +160,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun addChannelBtnOnClicked(view: View){
-        if (AuthService.isLoggedIn) {
+        if (App.prefs.isLoggedIn) {
             val builder = AlertDialog.Builder(this)
             val dialogView = layoutInflater.inflate(R.layout.add_channel_dialog, null)
 
             builder.setView(dialogView)
-                .setPositiveButton("Add") { dialog: DialogInterface?, which: Int ->
+                .setPositiveButton("Add") { _, _ ->
                     val nameTextField = dialogView.findViewById<EditText>(R.id.addChannelNameText)
                     val descTextField = dialogView.findViewById<EditText>(R.id.addChannelDescText)
 
@@ -115,7 +174,7 @@ class MainActivity : AppCompatActivity() {
 
                     socket.emit("newChannel", channelName, channelDesc)
                 }
-                .setNegativeButton("Cancel"){dialog: DialogInterface?, which: Int ->
+                .setNegativeButton("Cancel"){_, _ ->
                 }
                 .show()
         }
@@ -123,35 +182,30 @@ class MainActivity : AppCompatActivity() {
 
     fun sendMessageBtnOnClicked(view: View){
 
+        if(App.prefs.isLoggedIn && messageTextField.text.isNotEmpty() && selectedChannel != null){
+            val userId = UserDataService.id
+            val userName = UserDataService.name
+            val userAvatar  = UserDataService.avatarName
+            val userAvatarColor = UserDataService.avatarColor
+            val channelId = this.selectedChannel!!.id
+
+            socket.emit("newMessage", messageTextField.text.toString(), userId, channelId,
+                userName, userAvatar, userAvatarColor)
+            messageTextField.text.clear()
+            hideKeyBoard()
+        }
     }
 
-    private fun setAddChannelBtnVisibilty(isVisibe: Boolean){
+    private fun updateWithChannel(){
+        mainChannelName.text = "#${this.selectedChannel?.name}"
+    }
+
+    private fun toggleVisibility(isVisibe: Boolean){
 
         val visibility = if (isVisibe) View.VISIBLE else View.INVISIBLE
         sendMessageBtn.visibility = visibility
         messageTextField.visibility = visibility
-    }
-
-    private fun setChatBoxVisibilty(isVisibe: Boolean){
-
-        val visibility = if (isVisibe) View.VISIBLE else View.INVISIBLE
         addChannelBtn.visibility = visibility
-    }
-
-    private val userDataChangeReceiver = object : BroadcastReceiver(){
-        override fun onReceive(context: Context?, intent: Intent?) {
-            if (AuthService.isLoggedIn){
-                userNameNavHeader.text = UserDataService.name
-                userEmailNavHeader.text = UserDataService.email
-
-                val resourceId = resources.getIdentifier(UserDataService.avatarName, "drawable", packageName)
-                userImageNavHeader.setImageResource(resourceId)
-                loginBtnNavHeader.text = "Logout"
-                userImageNavHeader.setBackgroundColor(UserDataService.getAvatarColor(UserDataService.avatarColor))
-            }
-            setAddChannelBtnVisibilty(AuthService.isLoggedIn)
-            setChatBoxVisibilty(AuthService.isLoggedIn)
-        }
     }
 
     private fun hideKeyBoard(){
@@ -160,5 +214,10 @@ class MainActivity : AppCompatActivity() {
         if (inputManager.isAcceptingText){
             inputManager.hideSoftInputFromWindow(currentFocus.windowToken, 0)
         }
+    }
+
+    private fun setupAdapter(){
+        this.channelAdapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, MessageService.channels)
+        channel_list.adapter = channelAdapter
     }
 }

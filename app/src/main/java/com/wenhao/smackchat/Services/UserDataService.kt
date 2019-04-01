@@ -1,6 +1,7 @@
 package com.wenhao.smackchat.Services
 
 import android.graphics.Color
+import com.wenhao.smackchat.Controller.App
 import java.util.*
 
 object UserDataService {
@@ -17,9 +18,9 @@ object UserDataService {
         this.avatarName = ""
         this.email = ""
         this.name = ""
-        AuthService.authToken = ""
-        AuthService.userEmail = ""
-        AuthService.isLoggedIn = false
+        App.prefs.authToken = ""
+        App.prefs.userEmail = ""
+        App.prefs.isLoggedIn = false
     }
 
 

@@ -20,7 +20,9 @@
             app:layout_constraintTop_toTopOf="parent"
             android:textAlignment="center"
             android:text="@string/please_log_in"
-            android:id="@+id/mainChannelName"/>
+            android:id="@+id/mainChannelName"
+            android:textSize="18sp"
+            android:textStyle="bold"/>
 
     <EditText
             android:layout_width="0dp"

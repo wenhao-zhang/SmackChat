@@ -3,6 +3,8 @@ package com.wenhao.smackchat.Utilities
 //API URLs
 val BASE_URL = "https://secure-taiga-99391.herokuapp.com/v1"
 
+val GET_ALL_CHANNELS_URL = "${BASE_URL}/channel"
+
 val AUTH_URL = "${BASE_URL}/account"
 val REGISTER_URL = "${AUTH_URL}/register"
 val LOGIN_URL =  "${AUTH_URL}/login"
