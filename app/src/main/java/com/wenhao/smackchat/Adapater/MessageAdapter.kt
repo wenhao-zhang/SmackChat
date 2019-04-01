@@ -9,6 +9,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import com.wenhao.smackchat.Model.Message
 import com.wenhao.smackchat.R
+import com.wenhao.smackchat.Services.MessageService
 import com.wenhao.smackchat.Services.UserDataService
 
 class MessageAdapter(val context: Context, val messages: ArrayList<Message>, val itemClick: (Message) -> Unit): RecyclerView.Adapter<MessageAdapter.Holder>() {
@@ -43,7 +44,7 @@ class MessageAdapter(val context: Context, val messages: ArrayList<Message>, val
             this.userAvatar.setBackgroundColor(backgroundColor)
             this.userName.text = message.userName
             this.messageBody.text = message.message
-            this.timeStamp.text = message.timpeStamp
+            this.timeStamp.text = MessageService.returnDateString(message.timpeStamp)
 
         }
     }

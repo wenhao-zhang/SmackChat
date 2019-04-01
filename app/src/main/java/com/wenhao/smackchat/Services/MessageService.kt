@@ -9,6 +9,9 @@ import com.wenhao.smackchat.Model.Message
 import com.wenhao.smackchat.Utilities.GET_ALL_CHANNELS_URL
 import com.wenhao.smackchat.Utilities.GET_MESSAGES_URL
 import org.json.JSONException
+import java.text.SimpleDateFormat
+import java.text.ParseException
+import java.util.*
 
 object MessageService {
 
@@ -117,5 +120,19 @@ object MessageService {
 
     fun clearMessages(){
         this.messages.clear()
+    }
+
+    fun returnDateString(isoString: String) : String {
+        val isoFormatter = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+        isoFormatter.timeZone = TimeZone.getTimeZone("UTC")
+        var convertedDate = Date()
+        try {
+            convertedDate = isoFormatter.parse(isoString)
+        } catch (e: ParseException) {
+            Log.d("PARSE", "Cannot parse date")
+        }
+
+        val outDateString = SimpleDateFormat("E, h:mm a", Locale.getDefault())
+        return outDateString.format(convertedDate)
     }
 }
