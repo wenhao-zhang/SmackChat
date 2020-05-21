@@ -1,16 +1,17 @@
-package com.wenhao.smackchat
+package com.wenhao.smackchat.Controller
 
 import android.graphics.Color
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.view.View
+import com.wenhao.smackchat.R
 import kotlinx.android.synthetic.main.activity_create_user.*
 import java.util.*
 
 class CreateUserActivity : AppCompatActivity() {
 
     private var userAvatar = "profileDefault"
-    var avatarColor = "[0.5, 0.5, 0.5, 1]"
+    private var avatarColor = "[0.5, 0.5, 0.5, 1]"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -30,6 +31,8 @@ class CreateUserActivity : AppCompatActivity() {
 
     fun createUserBtnOnClicked(view: View){
 
+
+
     }
 
     fun generateUserAvatar(view: View){
@@ -43,4 +46,14 @@ class CreateUserActivity : AppCompatActivity() {
 
         createAvatarImageView.setImageResource(resourceId)
     }
+
+    private fun enableSpinner(isEnabled: Boolean){
+
+        createUserSpinner.visibility = if(isEnabled) View.VISIBLE else View.INVISIBLE
+
+        createUserBtn.isEnabled = !isEnabled
+        generateColorBtn.isEnabled = !isEnabled
+        createAvatarImageView.isEnabled = !isEnabled
+    }
+
 }
